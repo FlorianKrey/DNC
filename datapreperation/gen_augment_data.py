@@ -53,8 +53,6 @@ def setup():
                         'requires dvectordict')
     parser.add_argument('--maxprocesses', type=int, default=8,
                         help='number of processes in parallel')
-    parser.add_argument('--l2norm', default=False, action='store_true',
-                        help='apply l2 normalisation for d-vectors if set')
     parser.add_argument('outdir', type=str, action='store',
                         help='Output Directory for the Data')
     cmdargs = parser.parse_args()
@@ -142,13 +140,11 @@ def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, _file
         cur_mat = kaldiio.load_mat(segment[0])
 
         # l2 norm before average
-        if args.l2norm:
-            cur_mat = cur_mat / np.linalg.norm(cur_mat, axis=1, keepdims=True)
+        cur_mat = cur_mat / np.linalg.norm(cur_mat, axis=1, keepdims=True)
         # average
         cur_mat = np.mean(cur_mat, axis=0, keepdims=True)
         # l2 norm after average
-        if args.l2norm:
-            cur_mat = cur_mat / np.linalg.norm(cur_mat, axis=1, keepdims=True)
+        cur_mat = cur_mat / np.linalg.norm(cur_mat, axis=1, keepdims=True)
         cur_len = cur_mat.shape[0]
         all_spk.append(cur_spk)
         all_mat.append(cur_mat)
