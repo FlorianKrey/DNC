@@ -16,7 +16,6 @@ import pyhtk
 
 
 IDPOS = 2
-MAXPROCESSES = 8
 MAXLOOPITERATIONS = 150
 EPS = 10e-15
 def setup():
@@ -35,7 +34,7 @@ def setup():
                         help='min and max percentages of sequence length'\
                              'between which uniform sampling is used')
     parser.add_argument('--augment', type=int, default=0,
-                        help='how many times to augment, (0 means no augment)',)
+                        help='how many times to augment (0 means no augment, used for evaluation)')
     parser.add_argument('--evensplit', default=False, action='store_true',
                         help='split of meetings will be into equal chunks'\
                         'cannot be used together with variableL'\
@@ -45,14 +44,12 @@ def setup():
     parser.add_argument('--randomspeaker', default=False, action='store_true',
                         help='for each meeting randomise which speakers to use'\
                         'requires dvectordict')
-    parser.add_argument('--maxprocesses', type=int, default=8,
+    parser.add_argument('--maxprocesses', type=int, default=1,
                         help='number of processes in parallel')
     parser.add_argument('outdir', type=str, action='store',
                         help='Output Directory for the Data')
     cmdargs = parser.parse_args()
 
-    global MAXPROCESSES
-    MAXPROCESSES = cmdargs.maxprocesses
     # ensure list of scps and mlfs has the same length
     if len(cmdargs.inscps) != len(cmdargs.inmlfs):
         pyhtk.printError("number of input scps files and input mlfs has to be the same")
@@ -242,7 +239,7 @@ def augmentMeetingsSegments(args, meetings, basename):
                           args=(args, basename, meeting_name, seg_list, dvectors, _filenames, _meetings_out, _idx))
         fork.start()
         processes.append(fork)
-        if len(processes) == MAXPROCESSES or _idx == len(meetings) -1:
+        if len(processes) == args.maxprocesses or _idx == len(meetings) -1:
             for p in processes:
                 p.join()
             processes = []
