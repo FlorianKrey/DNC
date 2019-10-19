@@ -37,8 +37,6 @@ def setup():
                              'between which uniform sampling is used')
     parser.add_argument('--minSegLen', type=int, default=1,
                         help='minimum segment length')
-    parser.add_argument('--segFlag', action='store_true', default=False,
-                        help='an extra dimension indicating segment start')
     parser.add_argument('--augment', type=int, default=0,
                         help='how many times to augment, (0 means no augment)',)
     parser.add_argument('--evensplit', default=False, action='store_true',
@@ -184,10 +182,6 @@ def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, _file
         if args.l2norm:
             cur_mat = cur_mat / np.linalg.norm(cur_mat, axis=1, keepdims=True)
         cur_len = cur_mat.shape[0]
-        if args.segFlag is True:
-            seg_info = np.zeros((cur_len, 1))
-            seg_info[0] = 1.0
-            cur_mat = np.concatenate((cur_mat, seg_info), axis=1)
         all_spk.append(cur_spk)
         all_mat.append(cur_mat)
         all_len.append(cur_len)
