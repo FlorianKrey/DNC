@@ -69,8 +69,6 @@ def setup():
                         help='number of processes in parallel')
     parser.add_argument('--l2norm', default=False, action='store_true',
                         help='apply l2 normalisation for d-vectors if set')
-    parser.add_argument('--dvec-stats', type=str, default='',
-                        help='centroid stats file for normalisation')
     parser.add_argument('outdir', type=str, action='store',
                         help='Output Directory for the Data')
     cmdargs = parser.parse_args()
@@ -97,8 +95,6 @@ def setup():
         pyhtk.printError("includeOrigVecs should only be used together with segLenConstraint")
     if cmdargs.segLenConstraint and cmdargs.augment == 0:
         pyhtk.printError("currently segLenConstraint is only possible together with augment>0")
-    if cmdargs.dvec_stats:
-        cmdargs.dvec_stats = pyhtk.getAbsPath(cmdargs.dvec_stats)
     if xor(cmdargs.threshold is not None, cmdargs.thresholddist is not None):
         pyhtk.printError("threshold and thresholddist cannot be used on their own")
     elif cmdargs.threshold is not None:
@@ -160,7 +156,7 @@ def set_maxlen(args, all_len, meetinglength):
             maxlen = float('inf')
     return maxlen
 
-def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, dvec_stats, _filenames, _meetings_out, _idx):
+def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, _filenames, _meetings_out, _idx):
     print(meeting_name)
     # remove back-channeling if filtEncomp is set
     seg_list.sort(key=lambda tup: tup[1][0])
@@ -234,8 +230,6 @@ def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, dvec_
                 cur_meeting_mat = np.array(cur_meeting_mat)
             else:
                 assert args.randomspeaker is False, "cannot do random speaker with dvector dictionary"
-            if dvec_stats is not None:
-                cur_meeting_mat = (cur_meeting_mat - dvec_stats['mean'][0]) / dvec_stats['std'][0]
             cur_label = get_label_from_spk(cur_spk)
             meetings_ark[cur_meeting_name] = cur_meeting_mat
             meetings_out[cur_meeting_name] = cur_meeting_mat.shape, cur_label
@@ -261,8 +255,6 @@ def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, dvec_
                 cur_meeting_name = meeting_name + '-%03d' % segment_idx
                 cur_meeting_mat = np.concatenate(cur_meeting_mat, axis=0)
                 cur_label = get_label_from_spk(cur_spk)
-                if dvec_stats is not None:
-                    cur_meeting_mat = (cur_meeting_mat - dvec_stats['mean'][0]) / dvec_stats['std'][0]
                 meetings_ark[cur_meeting_name] = cur_meeting_mat
                 meetings_out[cur_meeting_name] = cur_meeting_mat.shape, cur_label
                 segment_idx += 1
@@ -278,8 +270,6 @@ def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, dvec_
         cur_meeting_name = meeting_name + '-%03d' % segment_idx
         cur_meeting_mat = np.concatenate(cur_meeting_mat, axis=0)
         cur_label = get_label_from_spk(cur_spk)
-        if dvec_stats is not None:
-            cur_meeting_mat = (cur_meeting_mat - dvec_stats['mean'][0]) / dvec_stats['std'][0]
         meetings_ark[cur_meeting_name] = cur_meeting_mat
         meetings_out[cur_meeting_name] = cur_meeting_mat.shape, cur_label
  
@@ -297,10 +287,6 @@ def augmentMeetingsSegments(args, meetings, basename):
         dvectors = dict(np.load(args.dvectordict, allow_pickle=True))
     else:
         dvectors = None
-    if args.dvec_stats:
-        dvec_stats = dict(np.load(args.dvec_stats))
-    else:
-        dvec_stats = None
 
     processes = []
     manager = mp.Manager()
@@ -309,7 +295,7 @@ def augmentMeetingsSegments(args, meetings, basename):
 
     for _idx, (meeting_name, seg_list) in enumerate(meetings.items()):
         fork = mp.Process(target=AugmentSingleMeeting,
-                          args=(args, basename, meeting_name, seg_list, dvectors, dvec_stats, _filenames, _meetings_out, _idx))
+                          args=(args, basename, meeting_name, seg_list, dvectors, _filenames, _meetings_out, _idx))
         fork.start()
         processes.append(fork)
         if len(processes) == MAXPROCESSES or _idx == len(meetings) -1:
