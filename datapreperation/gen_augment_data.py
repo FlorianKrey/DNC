@@ -9,7 +9,6 @@ import bisect
 import json
 import multiprocessing as mp
 from collections import deque
-from operator import xor
 
 import numpy as np
 import kaldiio
@@ -35,8 +34,6 @@ def setup():
     parser.add_argument('--variableL', nargs=2, type=float, default=None,
                         help='min and max percentages of sequence length'\
                              'between which uniform sampling is used')
-    parser.add_argument('--minSegLen', type=int, default=1,
-                        help='minimum segment length')
     parser.add_argument('--augment', type=int, default=0,
                         help='how many times to augment, (0 means no augment)',)
     parser.add_argument('--evensplit', default=False, action='store_true',
@@ -149,9 +146,6 @@ def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, _file
         cur_spk = segment[2]
         cur_mat = kaldiio.load_mat(segment[0])
 
-        # skip short segments
-        if cur_mat.shape[0] < args.minSegLen:
-            continue
         # average or sample
         if args.average:
             # l2 norm before average
