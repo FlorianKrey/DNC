@@ -40,13 +40,11 @@ def setup():
                         help='split of meetings will be into equal chunks'\
                         'cannot be used together with variableL'\
                         'augment has to be 0, maxlen has to be set')
-    parser.add_argument('--average', action='store_true', default=False,
-                        help='average all d-vectors within a segment')
     parser.add_argument('--dvectordict', type=str, default=None, action=pyhtk.Abspath,
                         help='dictionary of set of dvectors to be used')
     parser.add_argument('--segLenConstraint', type=int, default=None,
                         help='max segment length for dvector, o/w split and random sample.'\
-                                'Should only be passed with average and without randomspeaker.')
+                                'Should only be passed without randomspeaker.')
     parser.add_argument('--includeOrigVecs', default=False, action='store_true',
                         help='can only be used together with segLenConstraint.'\
                                 'If True then sampling includes the original averaged vector')
@@ -90,8 +88,6 @@ def setup():
             pyhtk.printError("When using evensplit, maxlen has to be set")
         if cmdargs.variableL is not None:
             pyhtk.printError("When using evensplit, variableL cannot be used")
-        if cmdargs.average is False:
-            pyhtk.printError("Current implementation for evensplit does not work without average")
     # setup output directory and cache commands
     pyhtk.checkOutputDir(cmdargs.outdir, True)
     pyhtk.cacheCommand(sys.argv, cmdargs.outdir)
@@ -117,7 +113,6 @@ def filter_encompassed_segments(_seglist):
 def set_maxlen(args, all_len, meetinglength):
     """ based on variableL, maxlen is randomly set. If variableL is None then maxlen=args.maxlen"""
     if args.variableL is not None:
-        assert(args.average is True), "can't promise that the code works if average not used"
         if args.maxlen is not None:
             maxlen = int(np.random.uniform(args.variableL[0], args.variableL[1]) * args.maxlen)-1
         else:
@@ -146,15 +141,12 @@ def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, _file
         cur_spk = segment[2]
         cur_mat = kaldiio.load_mat(segment[0])
 
-        # average or sample
-        if args.average:
-            # l2 norm before average
-            if args.l2norm:
-                cur_mat = cur_mat / np.linalg.norm(cur_mat, axis=1, keepdims=True)
-            cur_mat = np.mean(cur_mat, axis=0, keepdims=True)
-        else:
-            cur_mat = cur_mat[::100]
-        # l2 norm
+        # l2 norm before average
+        if args.l2norm:
+            cur_mat = cur_mat / np.linalg.norm(cur_mat, axis=1, keepdims=True)
+        # average
+        cur_mat = np.mean(cur_mat, axis=0, keepdims=True)
+        # l2 norm after average
         if args.l2norm:
             cur_mat = cur_mat / np.linalg.norm(cur_mat, axis=1, keepdims=True)
         cur_len = cur_mat.shape[0]
@@ -167,7 +159,6 @@ def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, _file
         #assert (args.maxlen is not None or args.variableL is not None), "Please set maxlen for augmentation"
         for i in range(args.augment):
             maxLen = set_maxlen(args,all_len,sum(all_len))
-            assert(args.average),"code almost definetly is not correct anymore without average"
             start_idx, end_idx = get_indices(all_len, maxLen)
             cur_meeting_name = meeting_name + '-%03d' % i
             cur_meeting_mat = np.concatenate(all_mat[start_idx:end_idx], axis=0)
