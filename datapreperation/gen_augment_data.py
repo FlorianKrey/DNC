@@ -47,13 +47,6 @@ def setup():
                         help='average all d-vectors within a segment')
     parser.add_argument('--dvectordict', type=str, default=None, action=pyhtk.Abspath,
                         help='dictionary of set of dvectors to be used')
-    parser.add_argument('--threshold', type=float, default=None,
-                        help='threshold applied to distance to '\
-                        'centroid of speaker per meeting, '\
-                        'not to be used with random speaker'\
-                        'thresholddist has to be passed')
-    parser.add_argument('--thresholddist', type=str, default=None,
-                        help='distance used for thresholding')
     parser.add_argument('--segLenConstraint', type=int, default=None,
                         help='max segment length for dvector, o/w split and random sample.'\
                                 'Should only be passed with average and without randomspeaker.')
@@ -93,17 +86,6 @@ def setup():
         pyhtk.printError("includeOrigVecs should only be used together with segLenConstraint")
     if cmdargs.segLenConstraint and cmdargs.augment == 0:
         pyhtk.printError("currently segLenConstraint is only possible together with augment>0")
-    if xor(cmdargs.threshold is not None, cmdargs.thresholddist is not None):
-        pyhtk.printError("threshold and thresholddist cannot be used on their own")
-    elif cmdargs.threshold is not None:
-        if cmdargs.randomspeaker:
-            pyhtk.printError("threshold cannot be used together with randomspeaker")
-        if cmdargs.thresholddist != 'cosine':
-            pyhtk.printError("currently thresholddist can only be cosine")
-        if cmdargs.l2norm is False and cmdargs.thresholddist == 'cosine':
-            pyhtk.printError("when thresholddist is cosine l2norm should be used")
-        if cmdargs.average is False:
-            pyhtk.printError("threshold can only be used together with average")
     if cmdargs.evensplit:
         if cmdargs.augment != 0:
             pyhtk.printError("When using evensplit, augment has to be 0")
