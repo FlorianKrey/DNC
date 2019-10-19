@@ -42,12 +42,6 @@ def setup():
                         'augment has to be 0, maxlen has to be set')
     parser.add_argument('--dvectordict', type=str, default=None, action=pyhtk.Abspath,
                         help='dictionary of set of dvectors to be used')
-    parser.add_argument('--segLenConstraint', type=int, default=None,
-                        help='max segment length for dvector, o/w split and random sample.'\
-                                'Should only be passed without randomspeaker.')
-    parser.add_argument('--includeOrigVecs', default=False, action='store_true',
-                        help='can only be used together with segLenConstraint.'\
-                                'If True then sampling includes the original averaged vector')
     parser.add_argument('--randomspeaker', default=False, action='store_true',
                         help='for each meeting randomise which speakers to use'\
                         'requires dvectordict')
@@ -73,12 +67,6 @@ def setup():
     if cmdargs.randomspeaker:
         if cmdargs.dvectordict is None:
             pyhtk.printError("if randomspeaker is used dvectordict has to be passed")
-        if cmdargs.segLenConstraint is not None:
-            pyhtk.printError("segLenConstraint cannot be used together with randomspeaker")
-    if cmdargs.includeOrigVecs and cmdargs.segLenConstraint is None:
-        pyhtk.printError("includeOrigVecs should only be used together with segLenConstraint")
-    if cmdargs.segLenConstraint and cmdargs.augment == 0:
-        pyhtk.printError("currently segLenConstraint is only possible together with augment>0")
     if cmdargs.evensplit:
         if cmdargs.augment != 0:
             pyhtk.printError("When using evensplit, augment has to be 0")
@@ -193,7 +181,6 @@ def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, _file
     else:
         #maxlen = float('inf') if args.maxlen is None else args.maxlen
         assert args.augment == 0, "invalid augment value"
-        assert args.segLenConstraint is None, "segLenConstraint cannot be used without augment>0"
         # convert lists to queues
         meetingLength = sum(all_len)
         all_mat = deque(all_mat)
