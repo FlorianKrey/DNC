@@ -1,0 +1,4 @@
+[submodule "SpectralCluster"]
+	path = SpectralCluster
+	url = https://github.com/FlorianKrey/SpectralCluster.git
+	branch = cosine_distance_kmeans
