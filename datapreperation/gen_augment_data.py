@@ -16,6 +16,7 @@ import pyhtk
 IDPOS = 2
 MAXLOOPITERATIONS = 150
 EPS = 10e-15
+np.random.seed(0)
 def setup():
     """Get cmds and setup directories."""
     parser = argparse.ArgumentParser(description='Prepare Data for Neural Speaker Clustering',
@@ -181,7 +182,7 @@ def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, _file
         assert args.augment == 0, "invalid augment value"
         # poping out matrices until meet maxlen, form sub meeting
         segment_idx = 0
-        while all_mat:
+        while all_mat.size > 0:
             maxlen = get_maxlen(args,meeting_len)
             # pop first maxlen elements from all_mat
             cur_meeting_mat = all_mat[0:maxlen]
@@ -190,17 +191,11 @@ def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, _file
             cur_spk = all_spk[0:maxlen]
             all_spk = all_spk[maxlen:]
             cur_meeting_name = meeting_name + '-%03d' % segment_idx
-            cur_meeting_mat = np.concatenate(cur_meeting_mat, axis=0)
             cur_label = get_label_from_spk(cur_spk)
             meetings_ark[cur_meeting_name] = cur_meeting_mat
             meetings_out[cur_meeting_name] = cur_meeting_mat.shape, cur_label
             segment_idx += 1
             assert all_mat.shape[0] == len(all_spk)
-        cur_meeting_name = meeting_name + '-%03d' % segment_idx
-        cur_meeting_mat = np.concatenate(cur_meeting_mat, axis=0)
-        cur_label = get_label_from_spk(cur_spk)
-        meetings_ark[cur_meeting_name] = cur_meeting_mat
-        meetings_out[cur_meeting_name] = cur_meeting_mat.shape, cur_label
  
     filename = os.path.join(basename, meeting_name)
     ark_path = pyhtk.getAbsPath(filename + '.ark')
