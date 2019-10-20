@@ -10,6 +10,7 @@ import multiprocessing as mp
 from collections import OrderedDict
 
 import numpy as np
+from tqdm import tqdm
 import kaldiio
 import pyhtk
 
@@ -250,7 +251,7 @@ def augment_meetings(args, meetings, basename):
     _filenames = manager.list([None] * len(meetings))
     _meetings_out = manager.list([None] * len(meetings))
 
-    for _idx, (meeting_name, seg_list) in enumerate(meetings.items()):
+    for _idx, (meeting_name, seg_list) in tqdm(list(enumerate(meetings.items()))):
         fork = mp.Process(target=augment_single_meeting,
                           args=(args, basename, meeting_name, seg_list,
                                 dvectors, _filenames, _meetings_out, _idx))
