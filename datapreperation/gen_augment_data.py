@@ -7,6 +7,7 @@ import sys
 import argparse
 import json
 import multiprocessing as mp
+from collections import OrderedDict
 
 import numpy as np
 import kaldiio
@@ -141,32 +142,39 @@ def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, _file
     if args.augment >= 1:
         assert (args.maxlen is not None or args.variableL is not None), "Set maxlen or variableL"
         for i in range(args.augment):
-            maxLen = get_maxlen(args,meeting_len)
-            start_idx, end_idx = get_startidx(meeting_len, maxLen)
+            maxlen = get_maxlen(args, meeting_len)
+            start_idx = get_startidx(meeting_len, maxlen)
             cur_meeting_name = meeting_name + '-%03d' % i
-            cur_meeting_mat = all_mat[start_idx:end_idx]
-            cur_spk = all_spk[start_idx:end_idx]
+            cur_meeting_mat = all_mat[start_idx:(start_idx+maxlen)]
+            cur_spk = all_spk[start_idx:(start_idx+maxlen)]
             # replace cur_mat with randomly sampled d-vectors
             if dvectors is not None:
                 dvec_dict = dvectors
                 if args.randomspeaker:
-                    spk_in_meeting = set(cur_spk)
+                    spk_in_meeting = sorted(list(set(cur_spk)))
                     # 2-level dictionary, random pick a meeting first
                     if meeting_name in dvectors:
                         all_meeting_names = list(dvectors.keys())
                         # random sample a meeting that has at least the same number of speakers as the current segment
                         sample_count = 0
                         while True:
+                            print(sample_count)
                             sample_count += 1
                             assert sample_count < MAXLOOPITERATIONS, "possibly an infinite loop"
                             random_meeting_name = np.random.choice(all_meeting_names)
                             if len(dvectors[random_meeting_name].item()) >= len(spk_in_meeting):
                                 break
                         dvec_dict = dvectors[random_meeting_name].item()
+                        sorted_keys = sorted(dvec_dict.keys())
+                        ordered_dvectors = OrderedDict([])
+                        for key in sorted_keys:
+                            ordered_dvectors[key] = dvec_dict[key]
+                        dvec_dict = ordered_dvectors
                     else:
                         assert list(spk_in_meeting)[0] in dvectors, "only 1-level or 2-lvel dictionary is allowed"
-                    all_speakers = list(set(dvec_dict.keys()))
+                    all_speakers = list(dvec_dict.keys())
                     new_spk = np.random.choice(all_speakers, len(spk_in_meeting), replace=False)
+                    print(new_spk)
                     spk_mapping = {orig_spk: rand_spk for orig_spk, rand_spk in zip(spk_in_meeting, new_spk)}
                     cur_spk = [spk_mapping[orig_spk] for orig_spk in cur_spk]
                 samples = [np.random.choice(np.arange(dvec_dict[spk].shape[1])) for spk in cur_spk]
@@ -209,6 +217,12 @@ def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, _file
 def augmentMeetingsSegments(args, meetings, basename):
     if args.dvectordict is not None:
         dvectors = dict(np.load(args.dvectordict, allow_pickle=True))
+        # for reproduction
+        sorted_keys = sorted(dvectors.keys())
+        ordered_dvectors = OrderedDict([])
+        for key in sorted_keys:
+            ordered_dvectors[key] = dvectors[key]
+        dvectors = ordered_dvectors
     else:
         dvectors = None
 
@@ -241,7 +255,9 @@ def augmentMeetingsSegments(args, meetings, basename):
     return meetings_out
 
 def get_startidx(meetinglength, maxlen):
-    start_idx = np.random.randint(meetinglength - maxlen)
+    TAIL = 30
+    assert meetinglength > 30
+    start_idx = np.random.randint(meetinglength - TAIL)
     return start_idx
 
 def get_label_from_spk(spk_list):
