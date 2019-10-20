@@ -13,20 +13,13 @@ import json
 import numpy as np
 import kaldiio
 from sklearn.neighbors import NearestNeighbors
-# inputs:  data.orig/arks/{train,eval,dev}.scp -> directly shows where the .ark file is
-#          mlfs/mlabs/{dev.mlf,eval.mlf,train.lim.mlf} -> for the speaker labels
-# outputs: outdir/{train.json, eval.json, }
-#          outdir/{train.scp, ...}
-#          outdir/{train.ark}
 
-IDpos = 2
-
+IDPOS = 2
 def setup():
     """Get cmds and setup directories."""
     cmdparser = argparse.ArgumentParser(description='Get centroids of speaker d-vectors', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     cmdparser.add_argument('--input-scps', dest = 'inscps', action='append', help='the scp files of the input data "train.scp eval.scp dev.scp xxx.mlf"', type=str)
     cmdparser.add_argument('--input-mlfs', dest = 'inmlfs', action='append', help='the mlabs files of the input data "train.mlf eval.mlf dev.mlf xxx.mlf"', type=str)
-    cmdparser.add_argument('--normdir', help='Normalisation statistics directory', type=str, default=None,action=pyhtk.Abspath)
     cmdparser.add_argument('--filtEncomp', help='Delete segments encompassed by another', default=False,action='store_true')
     cmdparser.add_argument('--minSegLen', help='minimum segment length', type=int,default=1)
     cmdparser.add_argument('--numClosestVecs', help='get vectors closest to centroid, (-1) gives segment level d vectors using average', type=int, default=0)
@@ -59,17 +52,6 @@ def setup():
     pyhtk.changeDir(cmdargs.outdir)
     return cmdargs
 
-def load_stats(normdir):
-    def load_htk_stat(filename):
-        with open(filename, 'r') as f:
-            for line in f:
-                if not line.startswith('<'):
-                    stats = np.array([float(i) for i in line.split()])
-        return stats
-    mean_file = os.path.join(normdir, 'cmn/AMIXXX/AMIXXX')
-    var_file = os.path.join(normdir, 'cvn/AMIXXX/AMIXXX')
-    return load_htk_stat(mean_file), load_htk_stat(var_file)
-
 def filterEncompassedSegments(_segList):
     _segList.sort(key=lambda tup: tup[1][0])
     segList = []
@@ -96,13 +78,6 @@ def getSpeakersFromMeetings(meetings):
             speakers.add(segment[2])
     return speakers
 
-def applyMeanVarNorm(cur_mat,mean=None,var=None):
-    if mean is not None:
-        cur_mat = cur_mat - mean
-    if var is not None:
-        cur_mat = cur_mat / np.sqrt(var)
-    return cur_mat
-
 def applyL2Norm(cur_mat):
     return cur_mat / np.linalg.norm(cur_mat, axis=1, keepdims=True)
 
@@ -116,10 +91,7 @@ def getDVectorDictFromMeetings(DVectors,args,meetings):
             cur_mat = kaldiio.load_mat(segment[0])
             if cur_mat.shape[0] < args.minSegLen:
                 continue
-            if not args.l2norm:
-                cur_mat = applyMeanVarNorm(cur_mat,mean=mean,var=var)
-            else:
-                cur_mat = applyL2Norm(cur_mat)
+            cur_mat = applyL2Norm(cur_mat)
             if curspeaker not in DVectors[meetingName]:
                 DVectors[meetingName][curspeaker] = []
             #if cur_mat.shape[0] >= 10:
@@ -311,7 +283,7 @@ def prepareData(args):
         for scpline in inscp:
             segName = scpline.split()[0]
             label = labelDict[segName]
-            meetingName = 'AMI-' + segName.split('-')[IDpos]
+            meetingName = 'AMI-' + segName.split('-')[IDPOS]
             try:
                 startTime = int(segName.split('_')[2])
                 endTime = int(segName.split('_')[3])
@@ -322,9 +294,6 @@ def prepareData(args):
                 meetings[meetingName] = []
             meetings[meetingName].append((scpline.split()[1].rstrip(),(startTime,endTime),label))
 
-        mean = var = None
-        if args.normdir is not None:
-            mean,var = load_stats(args.normdir)
         centroids = computeCentroids(args,meetings)
         np.savez(basename,**centroids)
 #        with open(basename,'w') as outfile:
