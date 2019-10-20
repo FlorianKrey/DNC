@@ -21,7 +21,6 @@ def setup():
     cmdparser.add_argument('--input-scps', dest = 'inscps', action='append', help='the scp files of the input data "train.scp eval.scp dev.scp xxx.mlf"', type=str)
     cmdparser.add_argument('--input-mlfs', dest = 'inmlfs', action='append', help='the mlabs files of the input data "train.mlf eval.mlf dev.mlf xxx.mlf"', type=str)
     cmdparser.add_argument('--filtEncomp', help='Delete segments encompassed by another', default=False,action='store_true')
-    cmdparser.add_argument('--minSegLen', help='minimum segment length', type=int,default=1)
     cmdparser.add_argument('--numClosestVecs', help='get vectors closest to centroid, (-1) gives segment level d vectors using average', type=int, default=0)
     cmdparser.add_argument('--subsampleKNN', help='by how much to subsample the input sequences for knn selection', type=int, default=200)
     cmdparser.add_argument('--KNNthreshold', help='for nearest neighbour only accept neighbours with distance smaller', type=float, default=float('inf'))
@@ -89,8 +88,6 @@ def getDVectorDictFromMeetings(DVectors,args,meetings):
         for segment in segList:
             curspeaker = segment[2]
             cur_mat = kaldiio.load_mat(segment[0])
-            if cur_mat.shape[0] < args.minSegLen:
-                continue
             cur_mat = applyL2Norm(cur_mat)
             if curspeaker not in DVectors[meetingName]:
                 DVectors[meetingName][curspeaker] = []
