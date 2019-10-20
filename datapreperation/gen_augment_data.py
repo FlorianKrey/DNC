@@ -7,7 +7,6 @@ import sys
 import argparse
 import json
 import multiprocessing as mp
-from collections import deque
 
 import numpy as np
 import kaldiio
@@ -92,7 +91,7 @@ def filter_encompassed_segments(_seglist):
             seglist.append(segment)
     return seglist
 
-def set_maxlen(args, meetinglength):
+def get_maxlen(args, meetinglength):
     """ based on variableL, maxlen is randomly set. If variableL is None then maxlen=args.maxlen"""
     if args.variableL is not None:
         if args.maxlen is not None:
@@ -133,15 +132,18 @@ def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, _file
         all_spk.append(cur_spk)
         all_mat.append(cur_mat)
         meeting_len += 1
+    # concatenate the segment level embeddings
+    all_mat = np.concatenate(all_mat, axis=0)
+    assert all_mat.shape[0] == len(all_spk) == meeting_len
     
     meetings_ark, meetings_out = {}, {}
     if args.augment >= 1:
         assert (args.maxlen is not None or args.variableL is not None), "Set maxlen or variableL"
         for i in range(args.augment):
-            maxLen = set_maxlen(args,meeting_len)
+            maxLen = get_maxlen(args,meeting_len)
             start_idx, end_idx = get_startidx(meeting_len, maxLen)
             cur_meeting_name = meeting_name + '-%03d' % i
-            cur_meeting_mat = np.concatenate(all_mat[start_idx:end_idx], axis=0)
+            cur_meeting_mat = all_mat[start_idx:end_idx]
             cur_spk = all_spk[start_idx:end_idx]
             # replace cur_mat with randomly sampled d-vectors
             if dvectors is not None:
@@ -170,39 +172,30 @@ def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, _file
                 cur_meeting_mat = [dvec_dict[spk][0][sample] for spk, sample in zip(cur_spk, samples)]
                 cur_meeting_mat = np.array(cur_meeting_mat)
             else:
-                assert args.randomspeaker is False, "cannot do random speaker with dvector dictionary"
+                assert args.randomspeaker is False, "randomspeaker not without dvector dictionary"
             cur_label = get_label_from_spk(cur_spk)
             meetings_ark[cur_meeting_name] = cur_meeting_mat
             meetings_out[cur_meeting_name] = cur_meeting_mat.shape, cur_label
     else:
         #maxlen = float('inf') if args.maxlen is None else args.maxlen
         assert args.augment == 0, "invalid augment value"
-        # convert lists to queues
-        all_mat = deque(all_mat)
-        all_spk = deque(all_spk)
         # poping out matrices until meet maxlen, form sub meeting
         segment_idx = 0
-        cur_meeting_mat = []
-        cur_spk = []
-        cur_len = 0
         while all_mat:
-            maxlen = set_maxlen(args,meeting_len)
-            if cur_len == maxlen:
-                cur_meeting_name = meeting_name + '-%03d' % segment_idx
-                cur_meeting_mat = np.concatenate(cur_meeting_mat, axis=0)
-                cur_label = get_label_from_spk(cur_spk)
-                meetings_ark[cur_meeting_name] = cur_meeting_mat
-                meetings_out[cur_meeting_name] = cur_meeting_mat.shape, cur_label
-                segment_idx += 1
-                cur_meeting_mat = []
-                cur_spk = []
-                cur_len = 0
-            else:
-                new_mat = all_mat.popleft()
-                new_spk = all_spk.popleft()
-                cur_meeting_mat.append(new_mat)
-                cur_spk.append(new_spk)
-                cur_len += 1
+            maxlen = get_maxlen(args,meeting_len)
+            # pop first maxlen elements from all_mat
+            cur_meeting_mat = all_mat[0:maxlen]
+            all_mat = all_mat[maxlen:]
+            # pop first maxlen elements from all_spk
+            cur_spk = all_spk[0:maxlen]
+            all_spk = all_spk[maxlen:]
+            cur_meeting_name = meeting_name + '-%03d' % segment_idx
+            cur_meeting_mat = np.concatenate(cur_meeting_mat, axis=0)
+            cur_label = get_label_from_spk(cur_spk)
+            meetings_ark[cur_meeting_name] = cur_meeting_mat
+            meetings_out[cur_meeting_name] = cur_meeting_mat.shape, cur_label
+            segment_idx += 1
+            assert all_mat.shape[0] == len(all_spk)
         cur_meeting_name = meeting_name + '-%03d' % segment_idx
         cur_meeting_mat = np.concatenate(cur_meeting_mat, axis=0)
         cur_label = get_label_from_spk(cur_spk)
