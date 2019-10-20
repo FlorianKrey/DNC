@@ -164,7 +164,6 @@ def augment_single_meeting(args, basename, meeting_name, seg_list,
                         # of speakers as current (sub-)meeting
                         sample_count = 0
                         while True:
-                            print(sample_count)
                             sample_count += 1
                             assert sample_count < MAXLOOPITERATIONS, "possibly an infinite loop"
                             random_meeting_name = np.random.choice(all_meeting_names)
@@ -181,7 +180,6 @@ def augment_single_meeting(args, basename, meeting_name, seg_list,
                             "only 1-level or 2-lvel dictionary is allowed"
                     all_speakers = list(dvec_dict.keys())
                     new_spk = np.random.choice(all_speakers, len(spk_in_meeting), replace=False)
-                    print(new_spk)
                     spk_mapping = {orig_spk: rand_spk
                                    for orig_spk, rand_spk in zip(spk_in_meeting, new_spk)}
                     cur_spk = [spk_mapping[orig_spk] for orig_spk in cur_spk]
@@ -221,7 +219,6 @@ def augment_single_meeting(args, basename, meeting_name, seg_list,
             writer(key, mat)
     _filenames[_idx] = filename
     _meetings_out[_idx] = meetings_out
-    print("Done with: %s" % meeting_name)
 
 def augment_meetings(args, meetings, basename):
     """
@@ -254,12 +251,10 @@ def augment_meetings(args, meetings, basename):
             for proc in processes:
                 proc.join()
             processes = []
-    print("Join finished")
 
     meetings_out = {}
     for meeting in _meetings_out:
         meetings_out.update(meeting)
-    print("Finished Concatenating")
 
     # concatenate multiple scp files
     with open('%s.scp' % basename, 'w') as fout:
@@ -333,7 +328,7 @@ def prepare_data(args):
                 start_time = int(seg_name.split('_')[2])
                 end_time = int(seg_name.split('_')[3])
             except:
-                print(meeting_name)
+                print("Getting time information for meeting %s failed" % meeting_name)
                 raise
             if not meeting_name in meetings:
                 meetings[meeting_name] = []
