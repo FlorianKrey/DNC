@@ -5,7 +5,6 @@
 import os
 import sys
 import argparse
-import bisect
 import json
 import multiprocessing as mp
 from collections import deque
@@ -93,13 +92,13 @@ def filter_encompassed_segments(_seglist):
             seglist.append(segment)
     return seglist
 
-def set_maxlen(args, all_len, meetinglength):
+def set_maxlen(args, meetinglength):
     """ based on variableL, maxlen is randomly set. If variableL is None then maxlen=args.maxlen"""
     if args.variableL is not None:
         if args.maxlen is not None:
             maxlen = int(np.random.uniform(args.variableL[0], args.variableL[1]) * args.maxlen)-1
         else:
-            maxlen = int(np.random.uniform(args.variableL[0], args.variableL[1]) * len(all_len))-1
+            maxlen = int(np.random.uniform(args.variableL[0], args.variableL[1]) * meetinglength)-1
     elif args.evensplit:
         assert args.maxlen is not None
         assert args.variableL is None
@@ -119,7 +118,8 @@ def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, _file
         seg_list = filter_encompassed_segments(seg_list)
 
     # load data and process
-    all_spk, all_mat, all_len = [], [], []
+    all_spk, all_mat = [], []
+    meeting_len = 0
     for segment in seg_list:
         cur_spk = segment[2]
         cur_mat = kaldiio.load_mat(segment[0])
@@ -130,17 +130,16 @@ def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, _file
         cur_mat = np.mean(cur_mat, axis=0, keepdims=True)
         # l2 norm after average
         cur_mat = cur_mat / np.linalg.norm(cur_mat, axis=1, keepdims=True)
-        cur_len = cur_mat.shape[0]
         all_spk.append(cur_spk)
         all_mat.append(cur_mat)
-        all_len.append(cur_len)
+        meeting_len += 1
     
     meetings_ark, meetings_out = {}, {}
     if args.augment >= 1:
-        #assert (args.maxlen is not None or args.variableL is not None), "Please set maxlen for augmentation"
+        assert (args.maxlen is not None or args.variableL is not None), "Set maxlen or variableL"
         for i in range(args.augment):
-            maxLen = set_maxlen(args,all_len,sum(all_len))
-            start_idx, end_idx = get_indices(all_len, maxLen)
+            maxLen = set_maxlen(args,meeting_len)
+            start_idx, end_idx = get_startidx(meeting_len, maxLen)
             cur_meeting_name = meeting_name + '-%03d' % i
             cur_meeting_mat = np.concatenate(all_mat[start_idx:end_idx], axis=0)
             cur_spk = all_spk[start_idx:end_idx]
@@ -179,20 +178,16 @@ def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, _file
         #maxlen = float('inf') if args.maxlen is None else args.maxlen
         assert args.augment == 0, "invalid augment value"
         # convert lists to queues
-        meetingLength = sum(all_len)
         all_mat = deque(all_mat)
         all_spk = deque(all_spk)
-        all_len = deque(all_len)
-
         # poping out matrices until meet maxlen, form sub meeting
         segment_idx = 0
         cur_meeting_mat = []
         cur_spk = []
         cur_len = 0
         while all_mat:
-            maxlen = set_maxlen(args,all_len,meetingLength)
-            next_len = all_len[0]
-            if (next_len + cur_len) > maxlen:
+            maxlen = set_maxlen(args,meeting_len)
+            if cur_len == maxlen:
                 cur_meeting_name = meeting_name + '-%03d' % segment_idx
                 cur_meeting_mat = np.concatenate(cur_meeting_mat, axis=0)
                 cur_label = get_label_from_spk(cur_spk)
@@ -207,7 +202,7 @@ def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, _file
                 new_spk = all_spk.popleft()
                 cur_meeting_mat.append(new_mat)
                 cur_spk.append(new_spk)
-                cur_len += all_len.popleft()
+                cur_len += 1
         cur_meeting_name = meeting_name + '-%03d' % segment_idx
         cur_meeting_mat = np.concatenate(cur_meeting_mat, axis=0)
         cur_label = get_label_from_spk(cur_spk)
@@ -257,14 +252,9 @@ def augmentMeetingsSegments(args, meetings, basename):
                 fout.write(fin.read())
     return meetings_out
 
-def get_indices(lengths, maxlen):
-    TAIL = 30
-    # a random number picked to ensure the tail has 32 segments
-    assert len(lengths) > TAIL
-    start_idx = np.random.randint(len(lengths) - TAIL)
-    accum_len = np.cumsum(lengths[start_idx:])
-    num_seg = bisect.bisect_right(accum_len, maxlen)
-    return start_idx, start_idx + num_seg
+def get_startidx(meetinglength, maxlen):
+    start_idx = np.random.randint(meetinglength - maxlen)
+    return start_idx
 
 def get_label_from_spk(spk_list):
     spk_mapping = {}
