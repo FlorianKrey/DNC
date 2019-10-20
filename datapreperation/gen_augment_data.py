@@ -78,7 +78,7 @@ def setup():
     return cmdargs
 
 def filter_encompassed_segments(_seglist):
-    """"""
+    """Function filters out segements contained entirely within another one"""
     _seglist.sort(key=lambda tup: tup[1][0])
     seglist = []
     #relevantSegments = []
@@ -111,8 +111,14 @@ def get_maxlen(args, meetinglength):
             maxlen = float('inf')
     return maxlen
 
-def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, _filenames, _meetings_out, _idx):
-    print(meeting_name)
+def augment_single_meeting(args, basename, meeting_name, seg_list,
+                           dvectors, _filenames, _meetings_out, _idx):
+    """
+        Performs data augmentation on single meeting:
+        1. Random shifts of possibly variable length
+        2. input randomisation using single or two-level dictionary (meeting,spk)
+        If args.augment==0 then meeting is only split and not augmented, used for evaluation
+    """
     # remove back-channeling if filtEncomp is set
     seg_list.sort(key=lambda tup: tup[1][0])
     if args.filtEncomp:
@@ -124,7 +130,6 @@ def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, _file
     for segment in seg_list:
         cur_spk = segment[2]
         cur_mat = kaldiio.load_mat(segment[0])
-
         # l2 norm before average
         cur_mat = cur_mat / np.linalg.norm(cur_mat, axis=1, keepdims=True)
         # average
@@ -137,7 +142,7 @@ def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, _file
     # concatenate the segment level embeddings
     all_mat = np.concatenate(all_mat, axis=0)
     assert all_mat.shape[0] == len(all_spk) == meeting_len
-    
+
     meetings_ark, meetings_out = {}, {}
     if args.augment >= 1:
         assert (args.maxlen is not None or args.variableL is not None), "Set maxlen or variableL"
@@ -155,7 +160,8 @@ def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, _file
                     # 2-level dictionary, random pick a meeting first
                     if meeting_name in dvectors:
                         all_meeting_names = list(dvectors.keys())
-                        # random sample a meeting that has at least the same number of speakers as the current segment
+                        # sample a meeting with at the least same number
+                        # of speakers as current (sub-)meeting
                         sample_count = 0
                         while True:
                             print(sample_count)
@@ -171,14 +177,17 @@ def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, _file
                             ordered_dvectors[key] = dvec_dict[key]
                         dvec_dict = ordered_dvectors
                     else:
-                        assert list(spk_in_meeting)[0] in dvectors, "only 1-level or 2-lvel dictionary is allowed"
+                        assert list(spk_in_meeting)[0] in dvectors, \
+                            "only 1-level or 2-lvel dictionary is allowed"
                     all_speakers = list(dvec_dict.keys())
                     new_spk = np.random.choice(all_speakers, len(spk_in_meeting), replace=False)
                     print(new_spk)
-                    spk_mapping = {orig_spk: rand_spk for orig_spk, rand_spk in zip(spk_in_meeting, new_spk)}
+                    spk_mapping = {orig_spk: rand_spk
+                                   for orig_spk, rand_spk in zip(spk_in_meeting, new_spk)}
                     cur_spk = [spk_mapping[orig_spk] for orig_spk in cur_spk]
                 samples = [np.random.choice(np.arange(dvec_dict[spk].shape[1])) for spk in cur_spk]
-                cur_meeting_mat = [dvec_dict[spk][0][sample] for spk, sample in zip(cur_spk, samples)]
+                cur_meeting_mat = [dvec_dict[spk][0][sample]
+                                   for spk, sample in zip(cur_spk, samples)]
                 cur_meeting_mat = np.array(cur_meeting_mat)
             else:
                 assert args.randomspeaker is False, "randomspeaker not without dvector dictionary"
@@ -191,7 +200,7 @@ def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, _file
         # poping out matrices until meet maxlen, form sub meeting
         segment_idx = 0
         while all_mat.size > 0:
-            maxlen = get_maxlen(args,meeting_len)
+            maxlen = get_maxlen(args, meeting_len)
             # pop first maxlen elements from all_mat
             cur_meeting_mat = all_mat[0:maxlen]
             all_mat = all_mat[maxlen:]
@@ -204,7 +213,7 @@ def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, _file
             meetings_out[cur_meeting_name] = cur_meeting_mat.shape, cur_label
             segment_idx += 1
             assert all_mat.shape[0] == len(all_spk)
- 
+
     filename = os.path.join(basename, meeting_name)
     ark_path = pyhtk.getAbsPath(filename + '.ark')
     with kaldiio.WriteHelper('ark,scp:%s,%s.scp' % (ark_path, filename)) as writer:
@@ -214,7 +223,11 @@ def AugmentSingleMeeting(args, basename, meeting_name, seg_list, dvectors, _file
     _meetings_out[_idx] = meetings_out
     print("Done with: %s" % meeting_name)
 
-def augmentMeetingsSegments(args, meetings, basename):
+def augment_meetings(args, meetings, basename):
+    """
+        Performs data augmentation for all meetings
+        Can be done in multi-process fashion based on args.maxprocesses (default=1)
+    """
     if args.dvectordict is not None:
         dvectors = dict(np.load(args.dvectordict, allow_pickle=True))
         # for reproduction
@@ -232,13 +245,14 @@ def augmentMeetingsSegments(args, meetings, basename):
     _meetings_out = manager.list([None] * len(meetings))
 
     for _idx, (meeting_name, seg_list) in enumerate(meetings.items()):
-        fork = mp.Process(target=AugmentSingleMeeting,
-                          args=(args, basename, meeting_name, seg_list, dvectors, _filenames, _meetings_out, _idx))
+        fork = mp.Process(target=augment_single_meeting,
+                          args=(args, basename, meeting_name, seg_list,
+                                dvectors, _filenames, _meetings_out, _idx))
         fork.start()
         processes.append(fork)
         if len(processes) == args.maxprocesses or _idx == len(meetings) -1:
-            for p in processes:
-                p.join()
+            for proc in processes:
+                proc.join()
             processes = []
     print("Join finished")
 
@@ -255,12 +269,20 @@ def augmentMeetingsSegments(args, meetings, basename):
     return meetings_out
 
 def get_startidx(meetinglength, maxlen):
-    TAIL = 30
-    assert meetinglength > 30
-    start_idx = np.random.randint(meetinglength - TAIL)
+    """
+        Pick starting point of sub-meeting uniformly random
+    """
+    # The commented code is used in the old version of the code
+    #TAIL = 30
+    #assert meetinglength > 30
+    #start_idx = np.random.randint(meetinglength - TAIL)
+    start_idx = np.random.randint(meetinglength - maxlen)
     return start_idx
 
 def get_label_from_spk(spk_list):
+    """
+        Returns dictionary mapping from speaker to output label (0,1,2...)
+    """
     spk_mapping = {}
     for spk in spk_list:
         if spk not in spk_mapping:
@@ -268,22 +290,29 @@ def get_label_from_spk(spk_list):
     return [spk_mapping[spk] for spk in spk_list]
 
 # each segment only has one label
-def mlfToDict(inmlf):
-    labelDict = {}
-    mlfLength = len(inmlf)
-    mlfIdx = 1
-    while(mlfIdx < mlfLength):
-        mlfLine = inmlf[mlfIdx].rstrip()
-        assert('.lab"' in mlfLine)
-        segName = mlfLine.split(".lab")[0].lstrip('"')
-        mlfLine = inmlf[mlfIdx+1].rstrip()
-        label = mlfLine.split()[2].split('[')[0]
-        labelDict[segName] = label
-        mlfIdx+=3
-    return labelDict
+def mlf_to_dict(inmlf):
+    """
+        Returns dictionary created from HTK-style MLF file.
+        Assumes each utterance has only a single label
+    """
+    label_dict = {}
+    mlf_length = len(inmlf)
+    mlf_idx = 1
+    while mlf_idx < mlf_length:
+        mlf_line = inmlf[mlf_idx].rstrip()
+        assert '.lab"' in mlf_line
+        seg_name = mlf_line.split(".lab")[0].lstrip('"')
+        mlf_line = inmlf[mlf_idx+1].rstrip()
+        label = mlf_line.split()[2].split('[')[0]
+        label_dict[seg_name] = label
+        mlf_idx += 3
+    return label_dict
 
-def prepareData(args):
-    for scp,mlf in zip(args.inscps,args.inmlfs):
+def prepare_data(args):
+    """
+        Loads the scp file and mlf file and calls the augmentation functions
+    """
+    for scp, mlf in zip(args.inscps, args.inmlfs):
         scp = os.path.abspath(scp)
         mlf = os.path.abspath(mlf)
         with open(scp) as _scp, open(mlf) as _mlf:
@@ -293,48 +322,53 @@ def prepareData(args):
         basename = os.path.splitext(os.path.basename(scp))[0]
         os.mkdir(basename)
         # get label dictionary for the segments
-        labelDict = mlfToDict(inmlf)
+        label_dict = mlf_to_dict(inmlf)
         # key is meeting ID and value is list of tuples, ark file entries and start time of segment
         meetings = {}
         for scpline in inscp:
-            segName = scpline.split()[0]
-            label = labelDict[segName]
-            meetingName = 'AMI-' + segName.split('-')[IDPOS]
+            seg_name = scpline.split()[0]
+            label = label_dict[seg_name]
+            meeting_name = 'AMI-' + seg_name.split('-')[IDPOS]
             try:
-                startTime = int(segName.split('_')[2])
-                endTime = int(segName.split('_')[3])
+                start_time = int(seg_name.split('_')[2])
+                end_time = int(seg_name.split('_')[3])
             except:
-                print(meetingName)
+                print(meeting_name)
                 raise
-            if not meetingName in meetings:
-                meetings[meetingName] = []
-            meetings[meetingName].append((scpline.split()[1].rstrip(),(startTime,endTime),label))
-        meetings = augmentMeetingsSegments(args, meetings, basename)
+            if not meeting_name in meetings:
+                meetings[meeting_name] = []
+            meetings[meeting_name].append((scpline.split()[1].rstrip(),
+                                           (start_time, end_time), label))
+        meetings = augment_meetings(args, meetings, basename)
         # create json file
-        jsonDict = {}
-        jsonDict["utts"] = {}
+        json_dict = {}
+        json_dict["utts"] = {}
         with open("%s.scp" % basename) as _scp:
-            meetingLevelScp = {eachline.split()[0]:eachline.split()[1].rstrip() for eachline in _scp.readlines()}
-        for meetingName,(shape,labelList) in meetings.items():
-            inputDict = {}
-            inputDict["feat"] = meetingLevelScp[meetingName]
-            inputDict["name"] = "input1"
-            inputDict["shape"] = shape
+            meeting_level_scp = {eachline.split()[0]:eachline.split()[1].rstrip()
+                                 for eachline in _scp.readlines()}
+        for meeting_name, (shape, label_list) in meetings.items():
+            input_dict = {}
+            input_dict["feat"] = meeting_level_scp[meeting_name]
+            input_dict["name"] = "input1"
+            input_dict["shape"] = shape
 
-            outputDict = {}
-            outputDict["name"] = "target1"
-            outputDict["shape"] = [len(labelList),4+1]
-            labelList = [str(i) for i in labelList]
-            outputDict["tokenid"] = ' '.join(labelList)
-            jsonDict["utts"][meetingName] = {}
-            jsonDict["utts"][meetingName]["input"]  = [inputDict]
-            jsonDict["utts"][meetingName]["output"] = [outputDict]
+            output_dict = {}
+            output_dict["name"] = "target1"
+            output_dict["shape"] = [len(label_list), 4+1]
+            label_list = [str(i) for i in label_list]
+            output_dict["tokenid"] = ' '.join(label_list)
+            json_dict["utts"][meeting_name] = {}
+            json_dict["utts"][meeting_name]["input"] = [input_dict]
+            json_dict["utts"][meeting_name]["output"] = [output_dict]
         with open("%s.json" % basename, 'wb') as json_file:
-            json_file.write(json.dumps(jsonDict, indent=4, sort_keys=True).encode('utf_8'))
+            json_file.write(json.dumps(json_dict, indent=4, sort_keys=True).encode('utf_8'))
 
 def main():
+    """
+        main
+    """
     args = setup()
-    prepareData(args)
+    prepare_data(args)
 
 if __name__ == '__main__':
     main()
