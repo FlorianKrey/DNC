@@ -24,8 +24,6 @@ def setup():
                                 '"train.mlf eval.mlf dev.mlf xxx.mlf"', type=str)
     cmdparser.add_argument('--filtEncomp', help='Delete segments encompassed by another',
                            default=False, action='store_true')
-    cmdparser.add_argument('--l2norm', default=False, action='store_true',
-                           help='apply l2 normlisation to d vectors before and after averaging')
     cmdparser.add_argument('--segLenConstraint', type=int, default=None,
                            help='max segment length for dvector')
     cmdparser.add_argument('--includeOrigVecs', default=False, action='store_true')
@@ -86,7 +84,6 @@ def get_dvector_dict_from_meetings(dvectors, args, meetings):
         for segment in seg_list:
             curspeaker = segment[2]
             cur_mat = kaldiio.load_mat(segment[0])
-            cur_mat = l2_normalise_matrix(cur_mat)
             if curspeaker not in dvectors[meeting_name]:
                 dvectors[meeting_name][curspeaker] = []
             dvectors[meeting_name][curspeaker].append(cur_mat)
@@ -149,13 +146,15 @@ def generate_dvecdict(args, meetings):
         dvectors = split_segments(args, dvectors)
     for meeting_name, meeting in dvectors.items():
         for curspeaker, curmats in meeting.items():
+            # l2 normalise then average
             dvectors_out[meeting_name][curspeaker] = \
-                np.expand_dims(np.array([np.mean(curmat, axis=0) for curmat in curmats]), 0)
-    if args.l2norm:
-        for meeting_name in dvectors_out:
-            for curspeaker, curmats in dvectors_out[meeting_name].items():
-                dvectors_out[meeting_name][curspeaker] = \
-                    np.expand_dims(l2_normalise_matrix(curmats[0]), 0)
+                np.expand_dims(np.array([np.mean(l2_normalise_matrix(curmat), axis=0)
+                                         for curmat in curmats]), 0)
+    # l2 normalise again
+    for meeting_name in dvectors_out:
+        for curspeaker, curmats in dvectors_out[meeting_name].items():
+            dvectors_out[meeting_name][curspeaker] = \
+                np.expand_dims(l2_normalise_matrix(curmats[0]), 0)
     if args.meetingLevelDict is False:
         _dvectors_out = dvectors_out
         dvectors_out = {}
@@ -193,7 +192,7 @@ def prepare_data(args):
         with open(scp) as _scp, open(mlf) as _mlf:
             inscp = list(_scp.readlines())
             inmlf = list(_mlf.readlines())
-        #name of scp and ark files is based on the input scp name
+        # name of dictionary will be based on scp file name
         basename = os.path.splitext(os.path.basename(scp))[0]
         # get label dictionary for the segments
         label_dict = mlf_to_dict(inmlf)
