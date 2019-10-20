@@ -46,6 +46,8 @@ def setup():
                         'requires dvectordict')
     parser.add_argument('--maxprocesses', type=int, default=1,
                         help='number of processes in parallel')
+    parser.add_argument('--varnormalise', default=False, action='store_true',
+                        help='Does variance normalisation by multiplying by sqrt(feature_dim)')
     parser.add_argument('outdir', type=str, action='store',
                         help='Output Directory for the Data')
     cmdargs = parser.parse_args()
@@ -156,6 +158,7 @@ def augment_single_meeting(args, basename, meeting_name, seg_list,
             if dvectors is not None:
                 dvec_dict = dvectors
                 if args.randomspeaker:
+                    # sorting to make code reproducable
                     spk_in_meeting = sorted(list(set(cur_spk)))
                     # 2-level dictionary, random pick a meeting first
                     if meeting_name in dvectors:
@@ -183,13 +186,16 @@ def augment_single_meeting(args, basename, meeting_name, seg_list,
                     spk_mapping = {orig_spk: rand_spk
                                    for orig_spk, rand_spk in zip(spk_in_meeting, new_spk)}
                     cur_spk = [spk_mapping[orig_spk] for orig_spk in cur_spk]
-                samples = [np.random.choice(np.arange(dvec_dict[spk].shape[1])) for spk in cur_spk]
-                cur_meeting_mat = [dvec_dict[spk][0][sample]
+                samples = [np.random.choice(np.arange(dvec_dict[spk].shape[0])) for spk in cur_spk]
+                cur_meeting_mat = [dvec_dict[spk][sample]
                                    for spk, sample in zip(cur_spk, samples)]
                 cur_meeting_mat = np.array(cur_meeting_mat)
             else:
                 assert args.randomspeaker is False, "randomspeaker not without dvector dictionary"
             cur_label = get_label_from_spk(cur_spk)
+            # np.sqrt(cur_meeting_mat.shape[1]) does variance normalisation
+            if args.varnormalise is True:
+                cur_meeting_mat *= np.sqrt(cur_meeting_mat.shape[1])
             meetings_ark[cur_meeting_name] = cur_meeting_mat
             meetings_out[cur_meeting_name] = cur_meeting_mat.shape, cur_label
     else:
@@ -207,6 +213,9 @@ def augment_single_meeting(args, basename, meeting_name, seg_list,
             all_spk = all_spk[maxlen:]
             cur_meeting_name = meeting_name + '-%03d' % segment_idx
             cur_label = get_label_from_spk(cur_spk)
+            # np.sqrt(cur_meeting_mat.shape[1]) does variance normalisation
+            if args.varnormalise is True:
+                cur_meeting_mat *= np.sqrt(cur_meeting_mat.shape[1])
             meetings_ark[cur_meeting_name] = cur_meeting_mat
             meetings_out[cur_meeting_name] = cur_meeting_mat.shape, cur_label
             segment_idx += 1
@@ -227,7 +236,7 @@ def augment_meetings(args, meetings, basename):
     """
     if args.dvectordict is not None:
         dvectors = dict(np.load(args.dvectordict, allow_pickle=True))
-        # for reproduction
+        # this is to make the code reproducable
         sorted_keys = sorted(dvectors.keys())
         ordered_dvectors = OrderedDict([])
         for key in sorted_keys:

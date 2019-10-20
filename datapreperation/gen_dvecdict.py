@@ -148,13 +148,13 @@ def generate_dvecdict(args, meetings):
         for curspeaker, curmats in meeting.items():
             # l2 normalise then average
             dvectors_out[meeting_name][curspeaker] = \
-                np.expand_dims(np.array([np.mean(l2_normalise_matrix(curmat), axis=0)
-                                         for curmat in curmats]), 0)
+                np.array([np.mean(l2_normalise_matrix(curmat), axis=0)
+                          for curmat in curmats])
     # l2 normalise again
     for meeting_name in dvectors_out:
         for curspeaker, curmats in dvectors_out[meeting_name].items():
             dvectors_out[meeting_name][curspeaker] = \
-                np.expand_dims(l2_normalise_matrix(curmats[0]), 0)
+                l2_normalise_matrix(curmats)
     if args.meetingLevelDict is False:
         _dvectors_out = dvectors_out
         dvectors_out = {}
@@ -163,7 +163,7 @@ def generate_dvecdict(args, meetings):
                 #curmats is (1,samples,feature)
                 if curspeaker in dvectors_out:
                     dvectors_out[curspeaker] = \
-                        np.concatenate((dvectors_out[curspeaker], curmats), axis=1)
+                        np.concatenate((dvectors_out[curspeaker], curmats), axis=0)
                 else:
                     dvectors_out[curspeaker] = curmats
     return dvectors_out
@@ -213,8 +213,8 @@ def prepare_data(args):
             meetings[meeting_name].append(
                 (scpline.split()[1].rstrip(), (start_time, end_time), label))
 
-        centroids = generate_dvecdict(args, meetings)
-        np.savez(basename, **centroids)
+        dvecdict = generate_dvecdict(args, meetings)
+        np.savez(basename, **dvecdict)
 
 def main():
     """main"""
