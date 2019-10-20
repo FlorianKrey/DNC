@@ -21,12 +21,8 @@ def setup():
     cmdparser.add_argument('--input-scps', dest = 'inscps', action='append', help='the scp files of the input data "train.scp eval.scp dev.scp xxx.mlf"', type=str)
     cmdparser.add_argument('--input-mlfs', dest = 'inmlfs', action='append', help='the mlabs files of the input data "train.mlf eval.mlf dev.mlf xxx.mlf"', type=str)
     cmdparser.add_argument('--filtEncomp', help='Delete segments encompassed by another', default=False,action='store_true')
-    cmdparser.add_argument('--numClosestVecs', help='get vectors closest to centroid, (-1) gives segment level d vectors using average', type=int, default=0)
-    cmdparser.add_argument('--subsampleKNN', help='by how much to subsample the input sequences for knn selection', type=int, default=200)
-    cmdparser.add_argument('--KNNthreshold', help='for nearest neighbour only accept neighbours with distance smaller', type=float, default=float('inf'))
-    cmdparser.add_argument('--distance', help='distance used for knn (euclidean,cosine...)', type=str, default='euclidean')
     cmdparser.add_argument('--l2norm', default=False, action='store_true', help='apply l2 normlisation to d vectors before and after averaging')
-    cmdparser.add_argument('--segLenConstraint', type=int,default=None, help = 'max segment length for dvector, has to be used with numClosestVecs = -1')
+    cmdparser.add_argument('--segLenConstraint', type=int,default=None, help = 'max segment length for dvector')
     cmdparser.add_argument('--includeOrigVecs', default=False, action='store_true')
     cmdparser.add_argument('--meetingLevelDict', default=False, action='store_true', help='Two level dictionary, dict["meeting"]["speaker"] = [dvec1,dvec2,...]')
     cmdparser.add_argument('outdir', help='Output Directory for the Data', type=str, action='store')
@@ -44,7 +40,6 @@ def setup():
             pyhtk.printError('mlf path has to end with .mlf')
     if cmdargs.segLenConstraint is None and cmdargs.includeOrigVecs:
         pyhtk.printError("includeOrigVecs only with segLenConstraints") #code will also work otherwise, but not logical to use both
-    print("numClosestVecs: %d" % cmdargs.numClosestVecs)
     # setup output directory and cache commands
     pyhtk.checkOutputDir(cmdargs.outdir, True)
     pyhtk.cacheCommand(sys.argv, cmdargs.outdir)
@@ -94,24 +89,6 @@ def getDVectorDictFromMeetings(DVectors,args,meetings):
             #if cur_mat.shape[0] >= 10:
             #    cur_mat = cur_mat[math.floor(cur_mat.shape[0]/10):-math.floor(cur_mat.shape[0]/10)]
             DVectors[meetingName][curspeaker].append(cur_mat)
-
-# vectors is (samples,features), centroid is (features,)
-# returns numNeighbours vecs of vectorArray that are closest to centroid
-def getKNNofCentroid(numNeighbours,vectorArray,centroid,threshold=float('inf'),distance="euclidean"):
-    knn = NearestNeighbors(n_neighbors=min(numNeighbours,vectorArray.shape[0]),metric=distance)
-    knn.fit(vectorArray)
-    _distances, _neighbours = knn.kneighbors(np.reshape(centroid,[1,centroid.shape[0]]), return_distance=True)
-    neighbours = [[]]
-    distances = [[]]
-    assert(len(_distances)==len(_neighbours)==1)
-    assert(len(_distances[0]) == len(_neighbours[0]))
-    for idx,distance in enumerate(_distances[0]):
-        if distance < threshold:
-            neighbours[0].append(_neighbours[0][idx])
-            distances[0].append(distance)
-    print("setK: %d, realK: %d, threshold=%f, minDist=%f, meanDist=%f, maxDist=%f, std=%f" % (numNeighbours,len(neighbours[0]), threshold, np.min(distances), np.mean(distances), np.max(distances), np.std(distances)))
-    neighbours = np.array(neighbours)
-    return vectorArray[neighbours]#np.expand_dims(vectorArray[neighbours],0)
 
 def splitSegments(args,DVectors):
     splitDVectors = {}
@@ -188,51 +165,18 @@ def computeCentroids(args,meetings):
     #DVectors is two level dictionary, dict[meetingName][curspeaker] = [mat1,mat2,...]
     DVectors = {meetingName: {} for meetingName in meetings.keys()}
     getDVectorDictFromMeetings(DVectors,args,meetings)
-    if args.numClosestVecs >= 0:
-        dvectorsOut = {}
-        if args.meetingLevelDict == False:
-            DVectors = twoLevelToSingleLevelDict(DVectors)
-            NPconcatenateListInDict(DVectors)
-            centroids = DVecDictToCentroidDict(DVectors)
-            if args.numClosestVecs > 0:
-                for curspeaker, centroid in centroids.items():
-                    dvectorsOut[curspeaker] = getKNNofCentroid(args.numClosestVecs,DVectors[curspeaker][::args.subsampleKNN],centroid,threshold=args.KNNthreshold,distance=args.distance)
-            elif args.numClosestVecs == 0:
-                dvectorsOut = centroidDictToOutputDict(centroids)
-            dvectorsOut = {'placeholder':dvectorsOut}
-        else:
-            #compute centroids
-            centroids = {meetingName:{} for meetingName in DVectors}
-            dvectorsOut = {meetingName:{} for meetingName in DVectors}
-            NPconcatenateListInDict(DVectors)
-            centroids = DVecDictToCentroidDict(DVectors)
-            if args.numClosestVecs > 0:
-                for meetingName,meeting in centroids.items():
-                    for curspeaker,centroid in meeting.items():
-                        dvectorsOut[meetingName][curspeaker] = getKNNofCentroid(args.numClosestVecs,DVectors[meetingName][curspeaker][::args.subsampleKNN],centroid,threshold=args.KNNthreshold,distance=args.distance)
-            elif args.numClosestVecs ==0:
-                dvectorsOut = centroidDictToOutputDict(centroids)
-            else:
-                pyhtk.printError("args.closestVecs<0 something went wrong")
-    elif args.numClosestVecs == -1:
-        _numDVec = 0
-        dvectorsOut = {meetingName:{} for meetingName in DVectors.keys()}
-        _DVecForStats = copy.deepcopy(DVectors)
-        NPconcatenateListInDict(_DVecForStats)
-        centroids = DVecDictToCentroidDict(_DVecForStats)
-        if args.segLenConstraint is not None:
-            DVectors,_numDVec = splitSegments(args,DVectors) 
-        for meetingName,meeting in DVectors.items():
-            for curspeaker,curmats in meeting.items():
-                dvectorsOut[meetingName][curspeaker] = np.expand_dims(np.array([np.mean(curmat,axis=0) for curmat in curmats]),0)
-                if args.KNNthreshold != float("inf"):
-                    numNeighbours = dvectorsOut[meetingName][curspeaker][0].shape[0]
-                    dvectorsOut[meetingName][curspeaker] = getKNNofCentroid(numNeighbours, dvectorsOut[meetingName][curspeaker][0], centroids[meetingName][curspeaker], threshold=args.KNNthreshold, distance=args.distance)
-        #pure test
-        #if args.segLenConstraint is not None:
-            #assert(_numDVec == sum([mat.shape[1] for meetingDict in dvectorsOut.values() for mat in meetingDict.values()]))
-    else:
-        pyhtk.printError("numClosestVecs cannot be smaller than -1")
+    
+    
+    _numDVec = 0
+    dvectorsOut = {meetingName:{} for meetingName in DVectors.keys()}
+    _DVecForStats = copy.deepcopy(DVectors)
+    NPconcatenateListInDict(_DVecForStats)
+    centroids = DVecDictToCentroidDict(_DVecForStats)
+    if args.segLenConstraint is not None:
+        DVectors,_numDVec = splitSegments(args,DVectors) 
+    for meetingName,meeting in DVectors.items():
+        for curspeaker,curmats in meeting.items():
+            dvectorsOut[meetingName][curspeaker] = np.expand_dims(np.array([np.mean(curmat,axis=0) for curmat in curmats]),0)
     if args.l2norm:
         for meetingName in dvectorsOut:
             for curspeaker,curmats in dvectorsOut[meetingName].items():
