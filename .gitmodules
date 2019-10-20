@@ -1,0 +1,4 @@
+[submodule "espnet"]
+	path = espnet
+	url = https://github.com/qiujiali/espnet.git
+	branch = dnc
