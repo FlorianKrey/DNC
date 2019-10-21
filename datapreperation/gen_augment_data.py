@@ -12,7 +12,7 @@ from collections import OrderedDict
 import numpy as np
 from tqdm import tqdm
 import kaldiio
-import pyhtk
+import utils
 
 
 IDPOS = 2
@@ -40,7 +40,7 @@ def setup():
                         help='split of meetings will be into equal chunks'\
                         'cannot be used together with variableL'\
                         'augment has to be 0, maxlen has to be set')
-    parser.add_argument('--dvectordict', type=str, default=None, action=pyhtk.Abspath,
+    parser.add_argument('--dvectordict', type=str, default=None, action=utils.Abspath,
                         help='dictionary of set of dvectors to be used')
     parser.add_argument('--randomspeaker', default=False, action='store_true',
                         help='for each meeting randomise which speakers to use'\
@@ -55,29 +55,29 @@ def setup():
 
     # ensure list of scps and mlfs has the same length
     if len(cmdargs.inscps) != len(cmdargs.inmlfs):
-        pyhtk.printError("number of input scps files and input mlfs has to be the same")
+        utils.print_error("number of input scps files and input mlfs has to be the same")
     for idx, scp in enumerate(cmdargs.inscps):
-        cmdargs.inscps[idx] = pyhtk.getAbsPath(scp)
+        cmdargs.inscps[idx] = utils.get_abs_path(scp)
         if not scp.endswith('.scp'):
-            pyhtk.printError('scp path has to end with .scp')
+            utils.print_error('scp path has to end with .scp')
     for idx, mlf in enumerate(cmdargs.inmlfs):
-        cmdargs.inmlfs[idx] = pyhtk.getAbsPath(mlf)
+        cmdargs.inmlfs[idx] = utils.get_abs_path(mlf)
         if not mlf.endswith('.mlf'):
-            pyhtk.printError('mlf path has to end with .mlf')
+            utils.print_error('mlf path has to end with .mlf')
     if cmdargs.randomspeaker:
         if cmdargs.dvectordict is None:
-            pyhtk.printError("if randomspeaker is used dvectordict has to be passed")
+            utils.print_error("if randomspeaker is used dvectordict has to be passed")
     if cmdargs.evensplit:
         if cmdargs.augment != 0:
-            pyhtk.printError("When using evensplit, augment has to be 0")
+            utils.print_error("When using evensplit, augment has to be 0")
         if cmdargs.maxlen is None:
-            pyhtk.printError("When using evensplit, maxlen has to be set")
+            utils.print_error("When using evensplit, maxlen has to be set")
         if cmdargs.variableL is not None:
-            pyhtk.printError("When using evensplit, variableL cannot be used")
+            utils.print_error("When using evensplit, variableL cannot be used")
     # setup output directory and cache commands
-    pyhtk.checkOutputDir(cmdargs.outdir, True)
-    pyhtk.cacheCommand(sys.argv, cmdargs.outdir)
-    pyhtk.changeDir(cmdargs.outdir)
+    utils.check_output_dir(cmdargs.outdir, True)
+    utils.cache_command(sys.argv, cmdargs.outdir)
+    utils.change_dir(cmdargs.outdir)
     return cmdargs
 
 def filter_encompassed_segments(_seglist):
@@ -223,7 +223,7 @@ def augment_single_meeting(args, basename, meeting_name, seg_list,
             assert all_mat.shape[0] == len(all_spk)
 
     filename = os.path.join(basename, meeting_name)
-    ark_path = pyhtk.getAbsPath(filename + '.ark')
+    ark_path = utils.get_abs_path(filename + '.ark')
     with kaldiio.WriteHelper('ark,scp:%s,%s.scp' % (ark_path, filename)) as writer:
         for key, mat in meetings_ark.items():
             writer(key, mat)

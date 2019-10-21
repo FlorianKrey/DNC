@@ -6,7 +6,7 @@
 import os
 import argparse
 import subprocess
-import pyhtk
+import utils
 
 def main():
     """main procedure"""
@@ -18,7 +18,7 @@ def main():
     parser.add_argument('--output-scoredir', required=True, type=str,
                         help="path to an output scoring directory")
     args = parser.parse_args()
-    pyhtk.changeDir(os.path.dirname(os.path.realpath(__file__)))
+    utils.change_dir(os.path.dirname(os.path.realpath(__file__)))
     subprocess.call("./score_diar.sh -r %s -s %s -o %s -m notlinked"
                     % (args.ref_rttm, args.score_rttm, args.output_scoredir), shell=True)
 

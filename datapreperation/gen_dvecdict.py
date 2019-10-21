@@ -8,7 +8,7 @@ import sys
 import argparse
 import numpy as np
 import kaldiio
-import pyhtk
+import utils
 
 
 IDPOS = 2
@@ -35,22 +35,22 @@ def setup():
 
     # ensure list of scps and mlfs has the same length
     if len(cmdargs.inscps) != len(cmdargs.inmlfs):
-        pyhtk.printError("number of input scps files and input mlfs has to be the same")
+        utils.print_error("number of input scps files and input mlfs has to be the same")
     for idx, scp in enumerate(cmdargs.inscps):
-        cmdargs.inscps[idx] = pyhtk.getAbsPath(scp)
+        cmdargs.inscps[idx] = utils.get_abs_path(scp)
         if not scp.endswith('.scp'):
-            pyhtk.printError('scp path has to end with .scp')
+            utils.print_error('scp path has to end with .scp')
     for idx, mlf in enumerate(cmdargs.inmlfs):
-        cmdargs.inmlfs[idx] = pyhtk.getAbsPath(mlf)
+        cmdargs.inmlfs[idx] = utils.get_abs_path(mlf)
         if not mlf.endswith('.mlf'):
-            pyhtk.printError('mlf path has to end with .mlf')
+            utils.print_error('mlf path has to end with .mlf')
     if cmdargs.segLenConstraint is None and cmdargs.includeOrigVecs:
         #code will also work otherwise, but not logical
-        pyhtk.printError("includeOrigVecs only with segLenConstraints")
+        utils.print_error("includeOrigVecs only with segLenConstraints")
     # setup output directory and cache commands
-    pyhtk.checkOutputDir(cmdargs.outdir, True)
-    pyhtk.cacheCommand(sys.argv, cmdargs.outdir)
-    pyhtk.changeDir(cmdargs.outdir)
+    utils.check_output_dir(cmdargs.outdir, True)
+    utils.cache_command(sys.argv, cmdargs.outdir)
+    utils.change_dir(cmdargs.outdir)
     return cmdargs
 
 def filter_encompassed_segments(_seg_list):
@@ -133,7 +133,7 @@ def concatenate_list_in_dict(inputdict):
             for key2 in inputdict[key1].keys():
                 inputdict[key1][key2] = np.concatenate(inputdict[key1][key2], axis=0)
         else:
-            pyhtk.printError("something went wrong")
+            utils.print_error("something went wrong")
 
 def generate_dvecdict(args, meetings):
     """ returns dictionary of segment level dvectors keys can be speakers or meetings """

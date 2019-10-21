@@ -10,14 +10,14 @@ from collections import deque
 
 import numpy as np
 import kaldiio
-import pyhtk
+import utils
 
 def setup():
     """Get cmds and setup directories"""
     parser = argparse.ArgumentParser(description="Generate RTTM file from json output")
-    parser.add_argument('--input-scp', type=str, required=True, action=pyhtk.Abspath,
+    parser.add_argument('--input-scp', type=str, required=True, action=utils.Abspath,
                         help="the scp file of the input data")
-    parser.add_argument('--js-dir', type=str, required=True, action=pyhtk.Abspath,
+    parser.add_argument('--js-dir', type=str, required=True, action=utils.Abspath,
                         help="the json file contains the clustering result")
     parser.add_argument('--js-num', type=int, required=True,
                         help="the number of json files to load")
@@ -32,14 +32,14 @@ def setup():
     args = parser.parse_args()
 
     if not args.input_scp.endswith('.scp'):
-        pyhtk.printError("scp path has to end with .scp")
+        utils.print_error("scp path has to end with .scp")
     if args.output_dir is None:
         args.output_dir = args.js_dir
     else:
-        args.output_dir = pyhtk.getAbsPath(args.output_dir)
-    pyhtk.checkOutputDir(args.output_dir, True)
-    pyhtk.cacheCommand(sys.argv, args.output_dir)
-    pyhtk.changeDir(args.output_dir)
+        args.output_dir = utils.get_abs_path(args.output_dir)
+    utils.check_output_dir(args.output_dir, True)
+    utils.cache_command(sys.argv, args.output_dir)
+    utils.change_dir(args.output_dir)
 
     return args
 

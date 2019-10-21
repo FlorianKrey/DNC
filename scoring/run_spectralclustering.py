@@ -11,7 +11,7 @@ import itertools
 import numpy as np
 from tqdm import tqdm
 import kaldiio
-import pyhtk
+import utils
 from SpectralCluster.spectralcluster import SpectralClusterer
 
 def setup():
@@ -33,8 +33,8 @@ def setup():
     # setup output directory and cache commands
     if cmdargs.output_json is not None:
         outdir = os.path.dirname(cmdargs.output_json)
-        pyhtk.checkOutputDir(outdir, True)
-        pyhtk.cacheCommand(sys.argv, outdir)
+        utils.check_output_dir(outdir, True)
+        utils.cache_command(sys.argv, outdir)
     return cmdargs
 
 def do_spectral_clustering(dvec_list, gauss_blur=1.0, p_percentile=0.95,
