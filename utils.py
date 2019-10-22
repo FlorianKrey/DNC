@@ -1,3 +1,4 @@
+"""Some util functions originally taken from PyHTK: https://ieeexplore.ieee.org/document/8683851"""
 import argparse
 import os
 import logging
