@@ -20,15 +20,14 @@ def setup():
                                                     'refined version of spectral clustering',
                                         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     cmdparser.add_argument('--gauss-blur', help='gaussian blur for spectral clustering',
-                           type=float, default=1.0)
+                           type=float, default=0.1)
     cmdparser.add_argument('--p-percentile', help='p_percentile for spectral clustering',
                            type=float, default=0.95)
     cmdparser.add_argument('--custom-dist', help='e.g. euclidean, cosine', type=str, default=None)
     cmdparser.add_argument('--json-out', dest='output_json',
                            help='json output file used for scoring', default=None)
-    cmdparser.add_argument('--minMaxK', nargs=2, default=[1, 4])
+    cmdparser.add_argument('--minMaxK', nargs=2, default=[2, 4])
     cmdparser.add_argument('injson', help='ark files containing the meetings', type=str)
-    cmdparser.add_argument('CMDdir', type=str)
     cmdargs = cmdparser.parse_args()
     # setup output directory and cache commands
     if cmdargs.output_json is not None:
