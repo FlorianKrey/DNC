@@ -1,6 +1,11 @@
 set -e
 set -x
 
+# replace placeholder in data/*.scp to current working directory
+sed -i 's?PLEASEREPLACE?'`pwd`'?g' data/train.scp
+sed -i 's?PLEASEREPLACE?'`pwd`'?g' data/dev.scp
+sed -i 's?PLEASEREPLACE?'`pwd`'?g' data/eval.scp
+
 # install miniconda
 CONDA_URL="https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh"
 wget --tries=3 ${CONDA_URL} -O miniconda.sh
