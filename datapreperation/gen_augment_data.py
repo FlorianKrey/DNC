@@ -14,7 +14,6 @@ from tqdm import tqdm
 import kaldiio
 import utils
 
-
 IDPOS = 2
 MAXLOOPITERATIONS = 150
 EPS = 10e-15
@@ -196,7 +195,7 @@ def augment_single_meeting(args, basename, meeting_name, seg_list,
             cur_label = get_label_from_spk(cur_spk)
             # np.sqrt(cur_meeting_mat.shape[1]) does variance normalisation
             if args.varnormalise is True:
-                cur_meeting_mat *= np.sqrt(cur_meeting_mat.shape[1])
+                cur_meeting_mat = cur_meeting_mat * np.sqrt(cur_meeting_mat.shape[1])
             meetings_ark[cur_meeting_name] = cur_meeting_mat
             meetings_out[cur_meeting_name] = cur_meeting_mat.shape, cur_label
     else:
