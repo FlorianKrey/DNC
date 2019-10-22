@@ -1,0 +1,10 @@
+[submodule "SpectralCluster"]
+	path = SpectralCluster
+	url = https://github.com/FlorianKrey/SpectralCluster.git
+	branch = cosine_distance_kmeans
+
+[submodule "espnet"]
+	path = espnet
+	url = https://github.com/qiujiali/espnet.git
+	branch = dnc
+
