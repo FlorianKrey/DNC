@@ -23,7 +23,7 @@ def setup():
                            type=float, default=1.0)
     cmdparser.add_argument('--p-percentile', help='p_percentile for spectral clustering',
                            type=float, default=0.95)
-    cmdparser.add_argument('--customDist', help='e.g. euclidean, cosine', type=str, default=None)
+    cmdparser.add_argument('--custom-dist', help='e.g. euclidean, cosine', type=str, default=None)
     cmdparser.add_argument('--json-out', dest='output_json',
                            help='json output file used for scoring', default=None)
     cmdparser.add_argument('--minMaxK', nargs=2, default=[1, 4])
@@ -38,18 +38,18 @@ def setup():
     return cmdargs
 
 def do_spectral_clustering(dvec_list, gauss_blur=1.0, p_percentile=0.95,
-                           minclusters=2, maxclusters=4, truek=4):#customDist=None
+                           minclusters=2, maxclusters=4, truek=4, custom_dist=None):
     """Does spectral clustering using SpectralCluster, see import"""
     if minclusters < 1 and maxclusters < 1:
         if truek == 1:
             return [0] * dvec_list.shape[0]
         clusterer = SpectralClusterer(min_clusters=truek, max_clusters=truek,
                                       p_percentile=p_percentile,
-                                      gaussian_blur_sigma=gauss_blur)#,customDist=customDist)
+                                      gaussian_blur_sigma=gauss_blur, custom_dist=custom_dist)
     else:
         clusterer = SpectralClusterer(min_clusters=minclusters, max_clusters=maxclusters,
                                       p_percentile=p_percentile,
-                                      gaussian_blur_sigma=gauss_blur)#,customDist=customDist)
+                                      gaussian_blur_sigma=gauss_blur, custom_dist=custom_dist)
     return clusterer.predict(dvec_list)
 
 def permutation_invariant_seqmatch(hypothesis, reference_list):
@@ -90,7 +90,8 @@ def evaluate_spectralclustering(args):
                                                 p_percentile=args.p_percentile,
                                                 minclusters=int(args.minMaxK[0]),
                                                 maxclusters=int(args.minMaxK[1]),
-                                                truek=len(set(reference)))#customDist=customDist
+                                                truek=len(set(reference)),
+                                                custom_dist=args.custom_dist)
         except:
             print("ERROR:: %s %s" % (str(reference), str(cur_mat)))
             raise
