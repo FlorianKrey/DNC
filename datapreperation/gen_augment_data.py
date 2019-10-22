@@ -186,6 +186,9 @@ def augment_single_meeting(args, basename, meeting_name, seg_list,
                     spk_mapping = {orig_spk: rand_spk
                                    for orig_spk, rand_spk in zip(spk_in_meeting, new_spk)}
                     cur_spk = [spk_mapping[orig_spk] for orig_spk in cur_spk]
+                else:
+                    if isinstance(next(dvectors.values()), dict):
+                        dvec_dict = dvectors[meeting_name]
                 samples = [np.random.choice(np.arange(dvec_dict[spk].shape[0])) for spk in cur_spk]
                 cur_meeting_mat = [dvec_dict[spk][sample]
                                    for spk, sample in zip(cur_spk, samples)]
