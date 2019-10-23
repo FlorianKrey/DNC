@@ -2,7 +2,7 @@
 
 This repository is the code used in our paper:
 
->**[Discriminative Neural Clustering for Speaker Diarisation](https://arxiv.org/abs/abcd.efghi)**
+>**[Discriminative Neural Clustering for Speaker Diarisation](https://arxiv.org/abs/1910.09703)**
 >
 >*Qiujia Li\*, Florian Kreyssig\*, Chao Zhang, Phil Woodland* (\* indicates equal contribution)
 >
@@ -114,12 +114,12 @@ python3 scoring/score_rttm.py --score-rttm /path/to/scoringdir/eval95k24.rttm --
 
 ## Reference
 ```plaintext
-@article{LiKreyssig2019DNC,
+@misc{LiKreyssig2019DNC,
   title={Discriminative Neural Clustering for Speaker Diarisation},
   author={Li, Qiujia and Kreyssig, Florian L. and Zhang, Chao and Woodland, Philip C.},
   journal={ArXiv.org},
+  eprint={1910.09703}
   year={2019},
-  volume={abs/abcd.efghi},
-  url={http://arxiv.org/abs/abcd/efghi}
+  url={https://arxiv.org/abs/1910.09703}
 }
 ```
