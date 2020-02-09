@@ -5,8 +5,6 @@ This repository is the code used in our paper:
 >**[Discriminative Neural Clustering for Speaker Diarisation](https://arxiv.org/abs/1910.09703)**
 >
 >*Qiujia Li\*, Florian Kreyssig\*, Chao Zhang, Phil Woodland* (\* indicates equal contribution)
->
->Submitted to ICASSP 2020
 
 ## Overview
 We propose to use encoder-decoder models for supervised clustering. This repository contains:
