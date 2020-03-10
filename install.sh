@@ -14,9 +14,9 @@ bash miniconda.sh -b -p `pwd`/venv
 # install dependencies under virtualenv
 . venv/bin/activate
 # install pytorch, you may want to change the cuda version for pytorch
-conda install -y pytorch=1.0.1 cuda80 -c pytorch
+conda install -y pytorch=1.0.1 cuda100 -c pytorch
 # install dependencies required by ESPnet
-pip install matplotlib scipy h5py chainer scikit-learn librosa soundfile editdistance protobuf tensorboardX pillow kaldiio configargparse PyYAML
+pip install matplotlib scipy h5py chainer==5.0.0 scikit-learn librosa soundfile editdistance protobuf tensorboardX pillow kaldiio configargparse PyYAML
 # install tqdm for data preparation
 pip install tqdm
 conda deactivate
