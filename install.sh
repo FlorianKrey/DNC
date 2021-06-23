@@ -7,7 +7,7 @@ sed -i 's?PLEASEREPLACE?'`pwd`'?g' data/dev.scp
 sed -i 's?PLEASEREPLACE?'`pwd`'?g' data/eval.scp
 
 # install miniconda
-CONDA_URL="https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh"
+CONDA_URL="https://repo.continuum.io/miniconda/Miniconda3-py37_4.9.2-Linux-x86_64.sh"
 wget --tries=3 ${CONDA_URL} -O miniconda.sh
 bash miniconda.sh -b -p `pwd`/venv
 
