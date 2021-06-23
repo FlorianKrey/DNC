@@ -99,7 +99,7 @@ def get_maxlen(args, meetinglength):
     """ based on variableL, maxlen is randomly set. If variableL is None then maxlen=args.maxlen"""
     if args.variableL is not None:
         if args.maxlen is not None:
-            maxlen = int(np.random.uniform(args.variableL[0], args.variableL[1]) * args.maxlen)-1
+            maxlen = int(np.random.uniform(args.variableL[0], args.variableL[1]) * min(meetinglength, args.maxlen))-1
         else:
             maxlen = int(np.random.uniform(args.variableL[0], args.variableL[1]) * meetinglength)-1
     elif args.evensplit:
@@ -110,7 +110,7 @@ def get_maxlen(args, meetinglength):
         if args.maxlen is not None:
             maxlen = args.maxlen
         else:
-            maxlen = float('inf')
+            maxlen = meetinglength
     return maxlen
 
 def augment_single_meeting(args, basename, meeting_name, seg_list,
